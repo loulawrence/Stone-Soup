@@ -257,7 +257,96 @@ class Mahalanobis(SquaredMahalanobis):
 
         """
         return np.sqrt(super().__call__(state1, state2))
+        
+class SquaredBidirectionalMahalanobis(Measure):
+    r"""Squared Bidirectional Mahalanobis distance measure
 
+    .. math::
+            Sigma = (Sigma_1 + Sigma_2)/2
+            ( {\mu_1 - \mu_2})  \Sigma^{-1}  ({\mu_1 - \mu_2}^T )
+
+    Stanley T. Birchfield and Sriram Rangarajan. Spatiograms versus histograms
+    for region-based tracking. In Proceedings of Computer Vision and Pattern
+    Recognition (CVPR’05) - Volume 2, CVPR ’05.
+
+    """
+    def __call__(self, state1, state2):
+        r"""Calculate the Squared Bidirectional Mahalanobis distance between a pair of states
+
+        Parameters
+        ----------
+        state1 : :class:`~.State`
+        state2 : :class:`~.State`
+
+        Returns
+        -------
+        float
+            Squared Mahalanobis distance between a pair of input :class:`~.State`
+            objects
+
+        """
+        state_vector1 = getattr(state1, 'mean', state1.state_vector)
+        state_vector2 = getattr(state2, 'mean', state2.state_vector)
+
+        if self.mapping is not None:
+            u = state_vector1[self.mapping, 0]
+            v = state_vector2[self.mapping2, 0]
+            # extract the mapped covariance data
+            sigma1 = self._cov(state1, tuple(self.mapping))
+            sigma2 = self._cov(state2, tuple(self.mapping))
+        else:
+            u = state_vector1[:, 0]
+            v = state_vector2[:, 0]
+            sigma1 = self._cov(state1)
+            sigma2 = self._cov(state2)
+
+        sigma = (sigma1 + sigma2)/2
+
+        delta = u - v
+
+        d2 = np.dot(np.dot(delta, np.linalg.inv(sigma)), delta)
+
+        return d2
+
+    @staticmethod
+    def _cov(state, mapping=None):
+        if mapping:
+            rows = np.array(mapping, dtype=np.intp)
+            columns = np.array(mapping, dtype=np.intp)
+            covar = state.covar[rows[:, np.newaxis], columns]
+        else:
+            covar = state.covar
+
+        return covar
+
+class BidirectionalMahalanobis(SquaredBidirectionalMahalanobis):
+    r"""Calculate the Squared Mahalanobis distance between a pair of state objects
+
+    .. math::
+            Sigma = (Sigma_1 + Sigma_2)/2
+            \sqrt{( {\mu_1 - \mu_2})  \Sigma^{-1}  ({\mu_1 - \mu_2}^T )}
+
+    Stanley T. Birchfield and Sriram Rangarajan. Spatiograms versus histograms
+    for region-based tracking. In Proceedings of Computer Vision and Pattern
+    Recognition (CVPR’05) - Volume 2, CVPR ’05.
+
+    """
+    def __call__(self, state1, state2):
+        r"""Calculate the Bidirectional Mahalanobis distance between a pair of states
+
+        Parameters
+        ----------
+        state1 : :class:`~.State`
+        state2 : :class:`~.State`
+
+        Returns
+        -------
+        float
+            Mahalanobis distance between a pair of input :class:`~.State`
+            objects
+
+        """
+        return np.sqrt(super().__call__(state1, state2))
 
 class SquaredGaussianHellinger(Measure):
     r"""Squared Gaussian Hellinger distance measure
